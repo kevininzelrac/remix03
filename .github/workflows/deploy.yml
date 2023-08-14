@@ -1,0 +1,70 @@
+name: AWS Build and Deploy
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  Build-Deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checking out code
+        uses: actions/checkout@v3
+
+      - name: Installing Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+
+      - name: Installing dependencies
+        run: npm install
+
+      - name: Building project
+        run: npm run build
+
+      - name: Deleting devDependencies
+        run: npm prune --omit=dev
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to S3 bucket
+        run: aws s3 sync ./public/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
+
+      - name: Deploy backend to Lambda
+        run: |
+          zip -r function.zip build node_modules server.js
+          aws lambda update-function-code --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} --zip-file fileb://function.zip --publish
+
+      - name: Wait for Lambda function update to complete
+        run: sleep 30
+
+      - name: Create new Lambda function version
+        run: |
+          aws lambda publish-version --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }}
+
+      - name: Get Latest Lambda Version
+        id: get_lambda_version
+        run: |
+          latest_version=$(aws lambda list-versions-by-function --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} --query 'Versions[-1].FunctionArn' --output text)
+          echo "::set-output name=lambda_version::$latest_version"
+
+      - name: Get CloudFront Distribution Config
+        id: get_cf_config
+        run: |
+          aws cloudfront get-distribution-config --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} > cf_config.json
+          echo "::set-output name=etag::$(jq -r '.ETag' cf_config.json)"
+
+      - name: Update CloudFront Config
+        run: |
+          jq --arg lambdaArn ${{ steps.get_lambda_version.outputs.lambda_version }} '.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations.Items[0].LambdaFunctionARN = $lambdaArn' cf_config.json | jq '.DistributionConfig' > updated_cf_config.json
+
+      - name: Update CloudFront Distribution
+        run: |
+          etag=${{ steps.get_cf_config.outputs.etag }}
+          aws cloudfront update-distribution --id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --distribution-config file://updated_cf_config.json --if-match $etag
