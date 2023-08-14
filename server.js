@@ -7,6 +7,7 @@ import compression from "compression";
 import express from "express";
 import morgan from "morgan";
 import sourceMapSupport from "source-map-support";
+import serverlessExpress from "@vendia/serverless-express";
 
 sourceMapSupport.install();
 installGlobals();
@@ -45,6 +46,8 @@ app.all(
         mode: process.env.NODE_ENV,
       })
 );
+
+export const handler = serverlessExpress({ app });
 
 const port = process.env.PORT || 3000;
 app.listen(port, async () => {
