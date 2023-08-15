@@ -52,7 +52,7 @@ app.all(
 //export const handler = serverlessExpress({ app });
 
 export const handler = createArcRequestHandler({
-  build: await build,
+  build,
   mode: process.env.NODE_ENV,
 });
 
