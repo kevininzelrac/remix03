@@ -24,7 +24,7 @@ export default function App() {
       <body>
         <header>
           <h1>Remix 03</h1>
-          <small>v0.0.1</small>
+          <pre>Remix 1.19.1 • cjs • vendia adapter • v0.1.0</pre>
         </header>
         <Outlet />
         <ScrollRestoration />

@@ -1,24 +1,15 @@
-import * as fs from "node:fs";
+const serverlessExpress = require("@vendia/serverless-express");
+const { createRequestHandler } = require("@remix-run/express");
+const { installGlobals } = require("@remix-run/node");
+const compression = require("compression");
+const express = require("express");
+const morgan = require("morgan");
 
-import { createRequestHandler } from "@remix-run/express";
-import { broadcastDevReady, installGlobals } from "@remix-run/node";
-import chokidar from "chokidar";
-import compression from "compression";
-import express from "express";
-import morgan from "morgan";
-import sourceMapSupport from "source-map-support";
+const path = require("path");
 
-//import serverlessExpress from "@vendia/serverless-express";
-import { createRequestHandler as createArcRequestHandler } from "@remix-run/architect";
-
-sourceMapSupport.install();
 installGlobals();
 
-const BUILD_PATH = "./build/index.js";
-/**
- * @type { import('@remix-run/node').ServerBuild | Promise<import('@remix-run/node').ServerBuild> }
- */
-let build = await import(BUILD_PATH);
+const BUILD_DIR = path.join(process.cwd(), "build");
 
 const app = express();
 
@@ -42,55 +33,45 @@ app.use(morgan("tiny"));
 app.all(
   "*",
   process.env.NODE_ENV === "development"
-    ? createDevRequestHandler()
+    ? (req, res, next) => {
+        purgeRequireCache();
+
+        return createRequestHandler({
+          /* async getLoadContext(req, res) {
+            // this becomes the loader context
+          }, */
+          build: require(BUILD_DIR),
+          mode: process.env.NODE_ENV,
+        })(req, res, next);
+      }
     : createRequestHandler({
-        build,
+        /* async getLoadContext(req, res) {
+          // this becomes the loader context
+        }, */
+        build: require(BUILD_DIR),
         mode: process.env.NODE_ENV,
       })
 );
 
-//export { app };
-
-//export const handler = serverlessExpress({ app });
-//const handler = serverlessExpress({ app });
-//export { handler };
-
-export const handler = createArcRequestHandler({
-  build,
-  mode: process.env.NODE_ENV,
-});
+exports.handler = serverlessExpress({ app });
 
 const port = process.env.PORT || 3000;
-app.listen(port, async () => {
+
+app.listen(port, () => {
   console.log(
     ` 🚀 Express server listening on port ${port} - http://localhost:${port}`
   );
-
-  if (process.env.NODE_ENV === "development") {
-    broadcastDevReady(build);
-  }
 });
 
-function createDevRequestHandler() {
-  const watcher = chokidar.watch(BUILD_PATH, { ignoreInitial: true });
-
-  watcher.on("all", async () => {
-    // 1. purge require cache && load updated server build
-    const stat = fs.statSync(BUILD_PATH);
-    build = import(BUILD_PATH + "?t=" + stat.mtimeMs);
-    // 2. tell dev server that this app server is now ready
-    broadcastDevReady(await build);
-  });
-
-  return async (req, res, next) => {
-    try {
-      //
-      return createRequestHandler({
-        build: await build,
-        mode: "development",
-      })(req, res, next);
-    } catch (error) {
-      next(error);
+function purgeRequireCache() {
+  // purge require cache on requests for "server side HMR" this won't let
+  // you have in-memory objects between requests in development,
+  // alternatively you can set up nodemon/pm2-dev to restart the server on
+  // file changes, but then you'll have to reconnect to databases/etc on each
+  // change. We prefer the DX of this, so we've included it for you by default
+  for (const key in require.cache) {
+    if (key.startsWith(BUILD_DIR)) {
+      delete require.cache[key];
     }
-  };
+  }
 }

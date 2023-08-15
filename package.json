@@ -1,7 +1,6 @@
 {
   "private": true,
   "sideEffects": false,
-  "type": "module",
   "scripts": {
     "dev": "remix dev --manual -c \"node server.js\"",
     "try": "remix build && npm prune --omit=dev",
