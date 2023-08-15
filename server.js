@@ -51,8 +51,9 @@ app.all(
 
 //export const handler = serverlessExpress({ app });
 
+import * as arcBuild from "../build";
 export const handler = createArcRequestHandler({
-  build: await import("./build/index.js"),
+  build: await import(arcBuild),
 });
 
 const port = process.env.PORT || 3000;
