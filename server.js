@@ -53,7 +53,7 @@ app.all(
 
 import * as arcBuild from "../build";
 export const handler = createArcRequestHandler({
-  build: await import(arcBuild),
+  build: await import({ arcBuild }),
 });
 
 const port = process.env.PORT || 3000;
