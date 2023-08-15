@@ -49,7 +49,9 @@ app.all(
       })
 );
 
-export const handler = serverlessExpress({ app });
+//export const handler = serverlessExpress({ app });
+const handler = serverlessExpress({ app });
+export { handler };
 
 //export const handler = createArcRequestHandler({
 //  build,
