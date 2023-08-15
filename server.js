@@ -52,7 +52,8 @@ app.all(
 //export const handler = serverlessExpress({ app });
 
 export const handler = createArcRequestHandler({
-  build: import(build),
+  build: await build,
+  mode: process.env.NODE_ENV,
 });
 
 const port = process.env.PORT || 3000;
