@@ -7,7 +7,9 @@ import compression from "compression";
 import express from "express";
 import morgan from "morgan";
 import sourceMapSupport from "source-map-support";
-import serverlessExpress from "@vendia/serverless-express";
+
+//import serverlessExpress from "@vendia/serverless-express";
+import { createRequestHandler as createArcRequestHandler } from "@remix-run/architect";
 
 sourceMapSupport.install();
 installGlobals();
@@ -47,7 +49,11 @@ app.all(
       })
 );
 
-export const handler = serverlessExpress({ app });
+//export const handler = serverlessExpress({ app });
+
+export const handler = createArcRequestHandler({
+  build: await import("./build/index.js"),
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, async () => {
