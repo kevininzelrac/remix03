@@ -9,7 +9,7 @@ import morgan from "morgan";
 import sourceMapSupport from "source-map-support";
 
 //import serverlessExpress from "@vendia/serverless-express";
-//import { createRequestHandler as createArcRequestHandler } from "@remix-run/architect";
+import { createRequestHandler as createArcRequestHandler } from "@remix-run/architect";
 
 sourceMapSupport.install();
 installGlobals();
@@ -49,27 +49,27 @@ app.all(
       })
 );
 
-export { app };
+//export { app };
 
 //export const handler = serverlessExpress({ app });
 //const handler = serverlessExpress({ app });
 //export { handler };
 
-//export const handler = createArcRequestHandler({
-//  build,
-//  mode: process.env.NODE_ENV,
-//});
+export const handler = createArcRequestHandler({
+  build,
+  mode: process.env.NODE_ENV,
+});
 
-if (process.env.NODE_ENV === "development") {
-  const port = process.env.PORT || 3000;
-  app.listen(port, async () => {
-    console.log(
-      ` 🚀 Express server listening on port ${port} - http://localhost:${port}`
-    );
+const port = process.env.PORT || 3000;
+app.listen(port, async () => {
+  console.log(
+    ` 🚀 Express server listening on port ${port} - http://localhost:${port}`
+  );
 
+  if (process.env.NODE_ENV === "development") {
     broadcastDevReady(build);
-  });
-}
+  }
+});
 
 function createDevRequestHandler() {
   const watcher = chokidar.watch(BUILD_PATH, { ignoreInitial: true });
